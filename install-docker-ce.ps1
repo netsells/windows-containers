@@ -152,9 +152,9 @@ Restart-And-Run()
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoExit $scriptPath $argList"
 
     Write-Output "Creating scheduled task trigger..."
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    $trigger = New-ScheduledTaskTrigger -AtStartup
 
-    Write-Output "Registering script to re-run at next user logon..."
+    Write-Output "Registering script to re-run at next system startup..."
     Register-ScheduledTask -TaskName $global:BootstrapTask -Action $action -Trigger $trigger -RunLevel Highest | Out-Null
 
     try

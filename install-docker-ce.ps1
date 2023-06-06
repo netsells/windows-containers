@@ -37,6 +37,9 @@
     .PARAMETER SkipDefaultHost
         Prevents setting localhost as the default network configuration
 
+    .PARAMETER SkipDefaultConfig
+        Prevents creating default docker configuration file
+
     .PARAMETER Force 
         If a restart is required, forces an immediate restart.
         
@@ -91,6 +94,9 @@ param(
 
     [switch]
     $SkipDefaultHost,
+
+    [switch]
+    $SkipDefaultConfig,
 
     [string]
     $NATSubnet,
@@ -571,6 +577,9 @@ Install-Docker()
         [switch]
         $SkipDefaultHost,
 
+        [switch]
+        $SkipDefaultConfig,
+
         [string]
         $ContainerBaseImage
     )
@@ -630,39 +639,46 @@ Install-Docker()
         md -Path $dockerConfigPath | Out-Null
     }
 
-    #
-    # Register the docker service.
-    # Configuration options should be placed at %programdata%\docker\config\daemon.json
-    #
-    Write-Output "Configuring the docker service..."
-
-    $daemonSettings = New-Object PSObject
-        
-    $certsPath = Join-Path $global:DockerDataPath "certs.d"
-
-    if (Test-Path $certsPath)
+    if ($SkipDefaultConfig.IsPresent)
     {
-        $daemonSettings | Add-Member NoteProperty hosts @("npipe://", "0.0.0.0:2376")
-        $daemonSettings | Add-Member NoteProperty tlsverify true
-        $daemonSettings | Add-Member NoteProperty tlscacert (Join-Path $certsPath "ca.pem")
-        $daemonSettings | Add-Member NoteProperty tlscert (Join-Path $certsPath "server-cert.pem")
-        $daemonSettings | Add-Member NoteProperty tlskey (Join-Path $certsPath "server-key.pem")
+        Write-Output "Skipping default docker configuration..."
     }
-    elseif (!$SkipDefaultHost.IsPresent)
+    else
     {
-        # Default local host
-        $daemonSettings | Add-Member NoteProperty hosts @("npipe://")
+        #
+        # Register the docker service.
+        # Configuration options should be placed at %programdata%\docker\config\daemon.json
+        #
+        Write-Output "Configuring the docker service..."
+
+        $daemonSettings = New-Object PSObject
+            
+        $certsPath = Join-Path $global:DockerDataPath "certs.d"
+
+        if (Test-Path $certsPath)
+        {
+            $daemonSettings | Add-Member NoteProperty hosts @("npipe://", "0.0.0.0:2376")
+            $daemonSettings | Add-Member NoteProperty tlsverify true
+            $daemonSettings | Add-Member NoteProperty tlscacert (Join-Path $certsPath "ca.pem")
+            $daemonSettings | Add-Member NoteProperty tlscert (Join-Path $certsPath "server-cert.pem")
+            $daemonSettings | Add-Member NoteProperty tlskey (Join-Path $certsPath "server-key.pem")
+        }
+        elseif (!$SkipDefaultHost.IsPresent)
+        {
+            # Default local host
+            $daemonSettings | Add-Member NoteProperty hosts @("npipe://")
+        }
+
+        if ($NATSubnet -ne "")
+        {
+            $daemonSettings | Add-Member NoteProperty fixed-cidr $NATSubnet
+        }
+
+        $daemonSettingsFile = Join-Path $dockerConfigPath "daemon.json"
+
+        $daemonSettings | ConvertTo-Json | Out-File -FilePath $daemonSettingsFile -Encoding ASCII
     }
 
-    if ($NATSubnet -ne "")
-    {
-        $daemonSettings | Add-Member NoteProperty fixed-cidr $NATSubnet
-    }
-
-    $daemonSettingsFile = Join-Path $dockerConfigPath "daemon.json"
-
-    $daemonSettings | ConvertTo-Json | Out-File -FilePath $daemonSettingsFile -Encoding ASCII
-    
     & dockerd --register-service --service-name $global:DockerServiceName
 
     Start-Docker

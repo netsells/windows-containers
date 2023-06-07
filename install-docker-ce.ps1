@@ -580,9 +580,6 @@ Install-Docker()
         [switch]
         $SkipDefaultHost,
 
-        [switch]
-        $SkipDefaultConfig,
-
         [string]
         $ContainerBaseImage
     )
@@ -635,52 +632,52 @@ Install-Docker()
     Write-Output "Installing Docker daemon... $DockerDPath"
     Copy-File -SourcePath $DockerDPath -DestinationPath $env:windir\System32\dockerd.exe
 
-    # if ($SkipDefaultConfig.IsPresent)
-    # {
-    #     Write-Output "Skipping default docker configuration..."
-    # }
-    # else
-    # {
-    #     $dockerConfigPath = Join-Path $global:DockerDataPath "config"
+    if ($SkipDefaultConfig)
+    {
+        Write-Output "Skipping default docker configuration..."
+    }
+    else
+    {
+        $dockerConfigPath = Join-Path $global:DockerDataPath "config"
     
-    #     if (!(Test-Path $dockerConfigPath))
-    #     {
-    #         md -Path $dockerConfigPath | Out-Null
-    #     }
+        if (!(Test-Path $dockerConfigPath))
+        {
+            md -Path $dockerConfigPath | Out-Null
+        }
 
-    #     #
-    #     # Register the docker service.
-    #     # Configuration options should be placed at %programdata%\docker\config\daemon.json
-    #     #
-    #     Write-Output "Configuring the docker service..."
+        #
+        # Register the docker service.
+        # Configuration options should be placed at %programdata%\docker\config\daemon.json
+        #
+        Write-Output "Configuring the docker service..."
 
-    #     $daemonSettings = New-Object PSObject
+        $daemonSettings = New-Object PSObject
             
-    #     $certsPath = Join-Path $global:DockerDataPath "certs.d"
+        $certsPath = Join-Path $global:DockerDataPath "certs.d"
 
-    #     if (Test-Path $certsPath)
-    #     {
-    #         $daemonSettings | Add-Member NoteProperty hosts @("npipe://", "0.0.0.0:2376")
-    #         $daemonSettings | Add-Member NoteProperty tlsverify true
-    #         $daemonSettings | Add-Member NoteProperty tlscacert (Join-Path $certsPath "ca.pem")
-    #         $daemonSettings | Add-Member NoteProperty tlscert (Join-Path $certsPath "server-cert.pem")
-    #         $daemonSettings | Add-Member NoteProperty tlskey (Join-Path $certsPath "server-key.pem")
-    #     }
-    #     elseif (!$SkipDefaultHost.IsPresent)
-    #     {
-    #         # Default local host
-    #         $daemonSettings | Add-Member NoteProperty hosts @("npipe://")
-    #     }
+        if (Test-Path $certsPath)
+        {
+            $daemonSettings | Add-Member NoteProperty hosts @("npipe://", "0.0.0.0:2376")
+            $daemonSettings | Add-Member NoteProperty tlsverify true
+            $daemonSettings | Add-Member NoteProperty tlscacert (Join-Path $certsPath "ca.pem")
+            $daemonSettings | Add-Member NoteProperty tlscert (Join-Path $certsPath "server-cert.pem")
+            $daemonSettings | Add-Member NoteProperty tlskey (Join-Path $certsPath "server-key.pem")
+        }
+        elseif (!$SkipDefaultHost.IsPresent)
+        {
+            # Default local host
+            $daemonSettings | Add-Member NoteProperty hosts @("npipe://")
+        }
 
-    #     if ($NATSubnet -ne "")
-    #     {
-    #         $daemonSettings | Add-Member NoteProperty fixed-cidr $NATSubnet
-    #     }
+        if ($NATSubnet -ne "")
+        {
+            $daemonSettings | Add-Member NoteProperty fixed-cidr $NATSubnet
+        }
 
-    #     $daemonSettingsFile = Join-Path $dockerConfigPath "daemon.json"
+        $daemonSettingsFile = Join-Path $dockerConfigPath "daemon.json"
 
-    #     $daemonSettings | ConvertTo-Json | Out-File -FilePath $daemonSettingsFile -Encoding ASCII
-    # }
+        $daemonSettings | ConvertTo-Json | Out-File -FilePath $daemonSettingsFile -Encoding ASCII
+    }
 
     & dockerd --register-service --service-name $global:DockerServiceName
 

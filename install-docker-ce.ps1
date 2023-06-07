@@ -163,6 +163,9 @@ Restart-And-Run()
     Write-Output "Registering script to re-run at next system startup..."
     Register-ScheduledTask -TaskName $global:BootstrapTask -Action $action -Trigger $trigger -RunLevel Highest | Out-Null
 
+    Write-Output "Setting script to run as system user..."
+    Set-ScheduledTask -TaskName $global:BootstrapTask -User SYSTEM
+
     try
     {
         if ($Force)
